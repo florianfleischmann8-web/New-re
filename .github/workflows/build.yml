@@ -12,17 +12,29 @@ jobs:
 
       - name: Archiv finden und entpacken
         run: |
-          echo "Dateien im Repo:"
-          ls -la
-          f=$(ls | grep -i 'tar' | head -n1 || true)
-          if [ -z "$f" ]; then
-            echo "FEHLER: Keine .tar-Datei im Hauptordner des Repos gefunden!"
+          echo "=== Alle Dateien im Repo ==="
+          find . -type f -not -path './.git/*'
+          echo "==========================="
+          mkdir -p _proj
+          found=""
+          while IFS= read -r f; do
+            if tar -tf "$f" >/dev/null 2>&1; then
+              found="$f"
+              break
+            fi
+          done < <(find . -type f -not -path './.git/*' -not -path './.github/*' -not -name '*.md')
+          if [ -z "$found" ]; then
+            echo "FEHLER: Es wurde keine gueltige TAR-Datei im Repo gefunden. Bitte MCSim.tar hochladen."
             exit 1
           fi
-          echo "Entpacke: $f"
-          mkdir -p _proj
-          tar -xf "$f" -C _proj || tar -xzf "$f" -C _proj
-          d=$(dirname "$(find _proj -name settings.gradle.kts | head -n1)")
+          echo "Entpacke: $found"
+          tar -xf "$found" -C _proj
+          s=$(find _proj -name settings.gradle.kts | head -n1)
+          if [ -z "$s" ]; then
+            echo "FEHLER: settings.gradle.kts nicht im Archiv gefunden."
+            exit 1
+          fi
+          d=$(dirname "$s")
           echo "Projektordner: $d"
           echo "PROJECT_DIR=$d" >> "$GITHUB_ENV"
 
