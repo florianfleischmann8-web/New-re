@@ -10,8 +10,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: MCSim.tar entpacken
-        run: tar -xf MCSim.tar
+      - name: Archiv finden und entpacken
+        run: |
+          echo "Dateien im Repo:"
+          ls -la
+          f=$(ls | grep -i 'tar' | head -n1 || true)
+          if [ -z "$f" ]; then
+            echo "FEHLER: Keine .tar-Datei im Hauptordner des Repos gefunden!"
+            exit 1
+          fi
+          echo "Entpacke: $f"
+          mkdir -p _proj
+          tar -xf "$f" -C _proj || tar -xzf "$f" -C _proj
+          d=$(dirname "$(find _proj -name settings.gradle.kts | head -n1)")
+          echo "Projektordner: $d"
+          echo "PROJECT_DIR=$d" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         with:
@@ -25,10 +38,10 @@ jobs:
           gradle-version: 8.7
 
       - name: Debug-APK bauen
-        working-directory: MCSim
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle assembleDebug --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
           name: MCSim-debug-apk
-          path: MCSim/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
